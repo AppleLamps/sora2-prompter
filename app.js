@@ -165,6 +165,8 @@ I can assist you with:
 
 How can I help you today?`;
             }
+            // Update page title
+            document.title = 'AI Chat Assistant';
         } else {
             if (modeToggle) {
                 modeToggle.innerHTML = `
@@ -192,6 +194,8 @@ How can I help you today? You can ask me to:
 
 What would you like to work on?`;
             }
+            // Update page title
+            document.title = 'Sora Prompt Engineering Assistant';
         }
     }
 
