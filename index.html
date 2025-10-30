@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sora Prompt Engineering Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
+        }
+        
+        .chat-container {
+            height: calc(100vh - 140px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+        }
+        
+        /* Custom Scrollbar */
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        
+        /* Floating Input Bar */
+        .floating-input {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 80px);
+            max-width: 800px;
+            background: #f3f4f6;
+            border-radius: 24px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 10;
+        }
+        
+        .floating-input input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 15px;
+            color: #111827;
+            padding: 4px 0;
+        }
+        
+        .floating-input input::placeholder {
+            color: #9ca3af;
+        }
+        
+        .mic-button {
+            width: 36px;
+            height: 36px;
+            background: #000000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+            padding: 0;
+        }
+        
+        .mic-button:hover {
+            background: #1f1f1f;
+        }
+        
+        .model-selector {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: transparent;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #000000;
+            transition: background 0.2s;
+            position: relative;
+        }
+        
+        .model-selector:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
+        .model-selector span {
+            color: #000000;
+        }
+
+        .model-selector-container {
+            position: relative;
+        }
+
+        .model-dropdown {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            padding: 4px;
+        }
+
+        .model-dropdown::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .model-dropdown::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .model-dropdown::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        .model-dropdown::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        .model-dropdown.open {
+            display: block;
+        }
+
+        .model-dropdown-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #111827;
+            transition: background 0.2s;
+        }
+
+        .model-dropdown-item:hover {
+            background: #f3f4f6;
+        }
+
+        .model-dropdown-item.selected {
+            background: #f9fafb;
+            font-weight: 500;
+        }
+
+        .model-dropdown-item svg {
+            color: #000000;
+            flex-shrink: 0;
+        }
+        
+        .send-button {
+            width: 36px;
+            height: 36px;
+            background: #000000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+            padding: 0;
+        }
+        
+        .send-button:hover {
+            background: #1f1f1f;
+        }
+        
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Message Bubbles */
+        .user-message {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+        
+        .user-bubble {
+            background: #f3f4f6;
+            border-radius: 18px;
+            padding: 16px 20px;
+            max-width: 70%;
+            word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .assistant-bubble {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 16px 20px;
+            max-width: 70%;
+            word-wrap: break-word;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .assistant-bubble > .message-content:first-child {
+            margin-top: 0;
+            padding-top: 0;
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+            line-height: 1.7;
+            color: #111827;
+            margin-bottom: 4px;
+            padding: 0;
+            text-indent: 0;
+        }
+        
+        .message-content ul,
+        .message-content ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+        
+        .message-content li {
+            margin: 4px 0;
+            line-height: 1.6;
+        }
+        
+        .message-content p {
+            margin: 4px 0;
+            line-height: 1.7;
+        }
+        
+        .message-content p:first-child {
+            margin-top: 0;
+        }
+        
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .message-content hr {
+            margin: 12px 0;
+            border: none;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .message-content h1,
+        .message-content h2,
+        .message-content h3 {
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .message-content h1:first-child,
+        .message-content h2:first-child,
+        .message-content h3:first-child {
+            margin-top: 0;
+        }
+        
+        .assistant-message {
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .assistant-avatar {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            background: #000000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .assistant-avatar svg {
+            width: 18px;
+            height: 18px;
+            fill: #ffffff;
+        }
+        
+        /* Thought Indicator */
+        .thought-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        /* Interaction Icons */
+        .interaction-icons {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #f3f4f6;
+            flex-wrap: wrap;
+        }
+        
+        .icon-button {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            color: #6b7280;
+            flex-shrink: 0;
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+        
+        .icon-button svg {
+            width: 18px;
+            height: 18px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .icon-button:hover {
+            background: #f3f4f6;
+        }
+        
+        .icon-button:hover svg {
+            opacity: 1;
+            color: #374151;
+        }
+        
+        .response-time {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-left: auto;
+            padding-left: 12px;
+            padding-right: 4px;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Header Icons */
+        .header-icon {
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            color: #374151;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .header-icon:hover {
+            opacity: 1;
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .header-icon svg {
+            flex-shrink: 0;
+        }
+        
+        /* Animations */
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fade-in 0.3s ease-out;
+        }
+        
+        .code-block-container {
+            position: relative;
+        }
+        
+        .code-block-container .copy-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s ease, background 0.2s ease;
+            z-index: 10;
+            padding: 0;
+        }
+        
+        .code-block-container:hover .copy-button {
+            opacity: 1;
+        }
+        
+        .copy-button:hover {
+            background: #ffffff;
+            border-color: #d1d5db;
+        }
+        
+        .copy-button svg {
+            width: 16px;
+            height: 16px;
+            color: #374151;
+        }
+        
+        .copy-button .check-icon {
+            color: #10b981;
+        }
+        
+        /* Message Area Padding */
+        #messagesArea {
+            padding-bottom: 100px;
+        }
+        
+        /* Typing Indicator */
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #9ca3af;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+        
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .tab-button {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.2s;
+            position: relative;
+            bottom: -1px;
+        }
+        
+        .tab-button:hover {
+            color: #111827;
+        }
+        
+        .tab-button.active {
+            color: #111827;
+            border-bottom-color: #111827;
+        }
+        
+        /* Page Views */
+        .page-view {
+            display: none;
+        }
+        
+        .page-view.active {
+            display: block;
+        }
+        
+        /* Stats Page Styles */
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px;
+            height: calc(100vh - 140px);
+            overflow-y: auto;
+        }
+        
+        .stats-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .stats-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .stats-container::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+        
+        .stats-container::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        
+        .stat-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-item {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .history-table th {
+            text-align: left;
+            padding: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .history-table td {
+            padding: 12px;
+            font-size: 14px;
+            color: #111827;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .history-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .daily-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .daily-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .daily-date {
+            font-weight: 500;
+            color: #111827;
+        }
+        
+        .daily-stats {
+            display: flex;
+            gap: 24px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .btn-secondary {
+            padding: 8px 16px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #374151;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .btn-danger {
+            padding: 8px 16px;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #dc2626;
+            transition: all 0.2s;
+        }
+        
+        .btn-danger:hover {
+            background: #fecaca;
+        }
+        
+        /* History Page Styles */
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .history-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .history-item:hover {
+            border-color: #d1d5db;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .history-item-preview {
+            font-size: 14px;
+            font-weight: 500;
+            color: #111827;
+            flex: 1;
+            margin-right: 12px;
+        }
+        
+        .history-item-time {
+            font-size: 12px;
+            color: #9ca3af;
+            white-space: nowrap;
+        }
+        
+        .history-item-response {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.5;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        
+        .history-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f3f4f6;
+        }
+        
+        .history-search {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        .history-search:focus {
+            outline: none;
+            border-color: #9ca3af;
+        }
+        
+        .history-empty {
+            text-align: center;
+            padding: 48px 24px;
+            color: #9ca3af;
+        }
+        
+        .history-empty svg {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            opacity: 0.5;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 800px;
+            max-height: 80vh;
+            width: 90%;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            background: transparent;
+            border: none;
+            color: #6b7280;
+            padding: 0;
+        }
+        
+        .modal-close:hover {
+            background: #f3f4f6;
+        }
+        
+        .modal-body {
+            color: #374151;
+            line-height: 1.6;
+        }
+        
+        .modal-section {
+            margin-bottom: 20px;
+        }
+        
+        .modal-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        
+        .modal-section-content {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+    </style>
+    
+    <!-- SVG Icons -->
+    <svg style="display: none;">
+        <symbol id="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+        </symbol>
+        
+        <symbol id="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </symbol>
+        
+        <symbol id="icon-lightbulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21h6"></path>
+            <path d="M12 3a6 6 0 0 0 0 8c0 2 .5 3 1 4h-2c.5-1 1-2 1-4a6 6 0 0 0 0-8z"></path>
+            <path d="M8 14h8"></path>
+        </symbol>
+        
+        <symbol id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </symbol>
+        
+        <symbol id="icon-audio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </symbol>
+        
+        <symbol id="icon-comment" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </symbol>
+        
+        <symbol id="icon-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+            <polyline points="16 6 12 2 8 6"></polyline>
+            <line x1="12" y1="2" x2="12" y2="15"></line>
+        </symbol>
+        
+        <symbol id="icon-thumbs-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2.1-1.79l1.38-9a2 2 0 0 0-2.1-2.21zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+        </symbol>
+        
+        <symbol id="icon-thumbs-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2.1 1.79l-1.38 9a2 2 0 0 0 2.1 2.21zM17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path>
+        </symbol>
+        
+        <symbol id="icon-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="19" cy="12" r="1"></circle>
+            <circle cx="5" cy="12" r="1"></circle>
+        </symbol>
+        
+        <symbol id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </symbol>
+        
+        <symbol id="icon-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+        </symbol>
+        
+        <symbol id="icon-equalizer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="8" width="4" height="8" rx="1"></rect>
+            <rect x="10" y="4" width="4" height="12" rx="1"></rect>
+            <rect x="18" y="6" width="4" height="10" rx="1"></rect>
+        </symbol>
+        
+        <symbol id="icon-robot" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M 18 5 Q 18 3 15 3 Q 12 3 12 6 L 12 6 Q 12 8 14 9 L 10 9 Q 7 9 7 11 Q 7 13 10 13 L 14 13 Q 12 14 12 16 Q 12 18 15 18 Q 18 18 18 16 Q 18 14 16 13 Z"/>
+        </symbol>
+        
+        <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </symbol>
+        
+        <symbol id="icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </symbol>
+        
+        <symbol id="icon-bar-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+        </symbol>
+        
+        <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </symbol>
+        
+        <symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+        </symbol>
+        
+        <symbol id="icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </symbol>
+        
+        <symbol id="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </symbol>
+    </svg>
+</head>
+<body>
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="flex items-center justify-between py-4">
+                <div class="flex items-center gap-3 flex-shrink-0">
+                    <h1 class="text-xl font-semibold text-gray-900">Sora Prompt Engineering Assistant</h1>
+                </div>
+                <div class="flex items-center gap-3 flex-shrink-0 ml-4">
+                    <button class="header-icon flex items-center gap-2 whitespace-nowrap" id="clearBtn" title="New chat">
+                        <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-refresh"></use></svg>
+                        <span class="text-sm text-gray-700">New chat</span>
+                    </button>
+                    <button class="header-icon" title="More options">
+                        <svg class="w-5 h-5"><use href="#icon-more"></use></svg>
+                    </button>
+                    <button class="header-icon flex items-center gap-2 whitespace-nowrap" title="Share">
+                        <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-share"></use></svg>
+                        <span class="text-sm text-gray-700">Share</span>
+                    </button>
+                    <button class="header-icon flex-shrink-0" title="Edit">
+                        <svg class="w-5 h-5"><use href="#icon-edit"></use></svg>
+                    </button>
+                </div>
+            </div>
+            <!-- Tab Navigation -->
+            <div class="tab-nav">
+                <button class="tab-button active" id="chatTab" data-page="chat">
+                    Chat
+                </button>
+                <button class="tab-button" id="historyTab" data-page="history">
+                    <svg class="w-4 h-4 inline-block mr-1.5" style="vertical-align: middle;"><use href="#icon-clock"></use></svg>
+                    History
+                </button>
+                <button class="tab-button" id="statsTab" data-page="stats">
+                    <svg class="w-4 h-4 inline-block mr-1.5" style="vertical-align: middle;"><use href="#icon-bar-chart"></use></svg>
+                    Usage & Costs
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Chat Page -->
+    <main id="chatPage" class="page-view active chat-container">
+        <!-- Messages Area -->
+        <div id="messagesArea" class="flex-1 overflow-y-auto px-6 py-6 scrollbar-thin">
+            <!-- Welcome Message -->
+            <div class="assistant-message animate-fade-in">
+                <div class="assistant-avatar">
+                    <svg><use href="#icon-robot"></use></svg>
+                </div>
+                <div class="assistant-bubble">
+                    <div class="message-content text-gray-900">Hello! I'm your Sora Prompt Engineering Assistant. I can help you create perfect prompts for OpenAI's Sora video generation model.
+
+I have access to comprehensive knowledge including:
+• The official Sora 2 prompting guide
+• Expert system prompts and best practices
+• A wide range of style examples and templates
+
+How can I help you today? You can ask me to:
+• Create prompts from your ideas
+• Improve existing prompts
+• Explain prompting techniques
+• Provide style-specific examples
+• Help with technical specifications
+
+What would you like to work on?</div>
+                    <div class="interaction-icons">
+                        <button class="icon-button" title="Regenerate"><svg><use href="#icon-refresh"></use></svg></button>
+                        <button class="icon-button" title="Read aloud"><svg><use href="#icon-audio"></use></svg></button>
+                        <button class="icon-button" title="Add comment"><svg><use href="#icon-comment"></use></svg></button>
+                        <button class="icon-button" title="Share"><svg><use href="#icon-share"></use></svg></button>
+                        <button class="icon-button" title="Thumbs up"><svg><use href="#icon-thumbs-up"></use></svg></button>
+                        <button class="icon-button" title="Thumbs down"><svg><use href="#icon-thumbs-down"></use></svg></button>
+                        <button class="icon-button" title="More options"><svg><use href="#icon-more"></use></svg></button>
+                        <span class="response-time">597ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- History Page -->
+    <main id="historyPage" class="page-view stats-container">
+        <div class="stat-card">
+            <h2>Conversation History</h2>
+            <input 
+                type="text" 
+                id="historySearch" 
+                class="history-search" 
+                placeholder="Search history..."
+            />
+            <div id="historyList" class="history-list">
+                <!-- History items will be populated here -->
+            </div>
+            <div id="historyEmpty" class="history-empty" style="display: none;">
+                <svg><use href="#icon-clock"></use></svg>
+                <p>No conversation history yet</p>
+                <p style="font-size: 13px; margin-top: 8px;">Your prompts and responses will appear here</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <h2>Actions</h2>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-secondary" id="refreshHistoryBtn">Refresh</button>
+                <button class="btn-danger" id="clearHistoryBtn">Clear All History</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Stats Page -->
+    <main id="statsPage" class="page-view stats-container">
+        <div class="stat-card">
+            <h2>Overview</h2>
+            <div class="stat-grid" id="overviewStats">
+                <!-- Stats will be populated here -->
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <h2>Last 7 Days</h2>
+            <div class="daily-breakdown" id="dailyBreakdown">
+                <!-- Daily breakdown will be populated here -->
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <h2>Request History</h2>
+            <div style="overflow-x: auto;">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Model</th>
+                            <th>Prompt Tokens</th>
+                            <th>Completion Tokens</th>
+                            <th>Total Tokens</th>
+                            <th>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <!-- History will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <h2>Actions</h2>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-secondary" id="refreshStatsBtn">Refresh</button>
+                <button class="btn-danger" id="resetStatsBtn">Reset All Data</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Input Bar (only visible on chat page) -->
+    <div class="floating-input" id="floatingInput">
+        <button class="mic-button" id="micButton" title="Voice input">
+            <svg class="w-5 h-5" style="color: white;"><use href="#icon-mic"></use></svg>
+        </button>
+        <input 
+            type="text" 
+            id="messageInput" 
+            placeholder="How can I help?"
+            autocomplete="off"
+        />
+        <div class="model-selector-container">
+            <button class="model-selector" id="modelSelector" title="Select model">
+                <svg class="w-4 h-4" style="color: #000000;"><use href="#icon-moon"></use></svg>
+                <span>Grok 4 Fast</span>
+                <svg class="w-3 h-3" style="color: #000000;"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="model-dropdown" id="modelDropdown"></div>
+        </div>
+        <button class="send-button" id="sendBtn" title="Send message" disabled>
+            <svg class="w-5 h-5" style="color: white;"><use href="#icon-send"></use></svg>
+        </button>
+    </div>
+
+    <!-- History Detail Modal -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Conversation Details</h3>
+                <button class="modal-close" id="closeHistoryModal">
+                    <svg class="w-5 h-5"><use href="#icon-x"></use></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <div class="modal-section-title">Your Request</div>
+                    <div class="modal-section-content" id="modalUserMessage"></div>
+                </div>
+                <div class="modal-section">
+                    <div class="modal-section-title">AI Response</div>
+                    <div class="modal-section-content" id="modalAssistantResponse"></div>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 16px;">
+                    <button class="btn-secondary" id="modalCopyResponse">
+                        <svg class="w-4 h-4 inline-block mr-1.5" style="vertical-align: middle;"><use href="#icon-copy"></use></svg>
+                        Copy Response
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load modules in correct order -->
+    <script src="js/config.js"></script>
+    <script src="js/costTracker.js"></script>
+    <script src="js/knowledgeLoader.js"></script>
+    <script src="js/apiHandler.js"></script>
+    <script src="js/messageHandler.js"></script>
+    <script src="js/uiManager.js"></script>
+    <script src="js/modelSelector.js"></script>
+    <script src="js/historyManager.js"></script>
+    <script src="app.js"></script>
+    <script src="js/statsManager.js"></script>
+</body>
+</html>
+
