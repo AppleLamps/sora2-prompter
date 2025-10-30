@@ -50,7 +50,11 @@ class KnowledgeLoader {
         return this.knowledgeFiles[filename] || '';
     }
 
-    buildSystemPrompt() {
+    buildSystemPrompt(mode = 'sora') {
+        if (mode === 'chat') {
+            return this.buildChatSystemPrompt();
+        }
+        
         const systemPromptContent = this.getKnowledgeFile('knowledge/systemprompt.md');
         const knowledgeContent = this.getKnowledgeFile('knowledge/knowledge.md');
         const examplesContent = this.getKnowledgeFile('knowledge/examples.md');
@@ -78,6 +82,28 @@ When helping users:
 6. Suggest iteration strategies
 
 Always provide practical, actionable advice with specific examples. Balance technical precision with creative guidance. Remember that your goal is to empower users to create exactly what they envision while understanding the creative partnership between human direction and AI interpretation.`;
+    }
+
+    buildChatSystemPrompt() {
+        return `You are a helpful, friendly, and knowledgeable AI assistant. You provide thoughtful, accurate, and engaging responses to a wide variety of questions and topics.
+
+Your communication style:
+- Be conversational and approachable while maintaining professionalism
+- Provide clear, well-organized responses
+- When explaining complex topics, break them down into understandable parts
+- Be honest about limitations and uncertainties
+- Ask clarifying questions when needed
+- Adapt your tone and detail level to match the user's needs
+
+You can help with:
+- General knowledge questions and explanations
+- Creative tasks like writing, brainstorming, and ideation
+- Problem-solving and analytical thinking
+- Learning new topics and concepts
+- Casual conversation and discussion
+- Technical topics across various domains
+
+Always aim to be helpful, accurate, and respectful in your interactions.`;
     }
 }
 
