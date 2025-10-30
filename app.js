@@ -23,6 +23,7 @@ class SoraPromptBot {
         this.checkApiKey();
         this.loadKnowledgeFiles();
         this.modelSelector.initialize();
+        this.initializeModeToggle();
     }
 
     initializeEventListeners() {
@@ -72,7 +73,8 @@ class SoraPromptBot {
     async callOpenRouterAPIStreaming(message) {
         // Ensure knowledge files are loaded and build system prompt
         await this.knowledgeLoader.ensureKnowledgeFilesLoaded();
-        const systemPrompt = this.knowledgeLoader.buildSystemPrompt();
+        const currentMode = this.config.getChatMode();
+        const systemPrompt = this.knowledgeLoader.buildSystemPrompt(currentMode);
         
         // Add conversation history
         const messages = [
@@ -124,6 +126,83 @@ class SoraPromptBot {
         this.conversationHistory = [];
         // Clear prompt cache ID when conversation is cleared
         this.apiHandler.clearCache();
+    }
+
+    toggleChatMode() {
+        const currentMode = this.config.getChatMode();
+        const newMode = currentMode === 'sora' ? 'chat' : 'sora';
+        this.config.setChatMode(newMode);
+        this.updateModeUI(newMode);
+        // Clear conversation when switching modes to avoid context confusion
+        this.clearConversation();
+    }
+
+    updateModeUI(mode) {
+        const modeToggle = document.getElementById('modeToggle');
+        const headerTitle = document.querySelector('h1');
+        const welcomeMessage = document.querySelector('.assistant-bubble .message-content');
+        
+        if (mode === 'chat') {
+            if (modeToggle) {
+                modeToggle.innerHTML = `
+                    <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-comment"></use></svg>
+                    <span class="text-sm text-gray-700">Chat Mode</span>
+                `;
+            }
+            if (headerTitle) {
+                headerTitle.textContent = 'AI Chat Assistant';
+            }
+            if (welcomeMessage) {
+                welcomeMessage.textContent = `Hello! I'm your AI chat assistant. I'm here to help you with a wide variety of topics and questions.
+
+I can assist you with:
+• General knowledge and information
+• Creative writing and brainstorming
+• Problem-solving and analytical thinking
+• Learning new concepts
+• Technical discussions
+• Casual conversation
+
+How can I help you today?`;
+            }
+        } else {
+            if (modeToggle) {
+                modeToggle.innerHTML = `
+                    <svg class="w-5 h-5 flex-shrink-0"><use href="#icon-lightbulb"></use></svg>
+                    <span class="text-sm text-gray-700">Sora Mode</span>
+                `;
+            }
+            if (headerTitle) {
+                headerTitle.textContent = 'Sora Prompt Engineering Assistant';
+            }
+            if (welcomeMessage) {
+                welcomeMessage.textContent = `Hello! I'm your Sora Prompt Engineering Assistant. I can help you create perfect prompts for OpenAI's Sora video generation model.
+
+I have access to comprehensive knowledge including:
+• The official Sora 2 prompting guide
+• Expert system prompts and best practices
+• A wide range of style examples and templates
+
+How can I help you today? You can ask me to:
+• Create prompts from your ideas
+• Improve existing prompts
+• Explain prompting techniques
+• Provide style-specific examples
+• Help with technical specifications
+
+What would you like to work on?`;
+            }
+        }
+    }
+
+    initializeModeToggle() {
+        const modeToggle = document.getElementById('modeToggle');
+        if (modeToggle) {
+            modeToggle.addEventListener('click', () => this.toggleChatMode());
+        }
+        // Initialize UI with current mode
+        const currentMode = this.config.getChatMode();
+        this.updateModeUI(currentMode);
     }
 }
 

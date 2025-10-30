@@ -50,5 +50,13 @@ class Config {
             'openai/gpt-oss-120b': { prompt: 0.04, completion: 0.40 }
         };
     }
+
+    static getChatMode() {
+        return localStorage.getItem('chat_mode') || 'sora';
+    }
+
+    static setChatMode(mode) {
+        localStorage.setItem('chat_mode', mode);
+    }
 }
 
